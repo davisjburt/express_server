@@ -1,15 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
-
-const config = require("../lib/config");
 const Post = require("./models/post");
 const Like = require("./models/like");
-
-const { dbHost, dbName, dbUser, dbPass } = config;
-const auth = dbUser
-  ? `${encodeURIComponent(dbUser)}:${encodeURIComponent(dbPass)}@`
-  : "";
-mongoose.connect(`mongodb://${auth}${dbHost}/${dbName}`);
 
 const router = express.Router();
 
@@ -56,6 +48,18 @@ router.param("answerid", (req, res, next, id) =>
   loadPost(req, res, next, id, false),
 );
 
+router.param("postid", async (req, res, next, id) => {
+  try {
+    if (!mongoose.isValidObjectId(id)) return notFound(res);
+    const post = await Post.findById(id);
+    if (!post) return notFound(res);
+    req.post = post;
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
 router
   .route("/questions")
   .get(async (req, res, next) => {
@@ -80,7 +84,6 @@ router
         created: now,
         edited: now,
       });
-      await post.validate();
       await post.save();
       res.status(201).json(postJSON(post, ["reference"]));
     } catch (err) {
@@ -100,7 +103,6 @@ router
       if (req.body.contents !== undefined)
         req.post.contents = req.body.contents;
       req.post.edited = Date.now();
-      await req.post.validate();
       await req.post.save();
       res.json(postJSON(req.post, ["reference"]));
     } catch (err) {
@@ -133,7 +135,6 @@ router
         created: now,
         edited: now,
       });
-      await post.validate();
       await post.save();
       res.status(201).json(postJSON(post, ["title"]));
     } catch (err) {
@@ -152,7 +153,6 @@ router
       if (req.body.contents !== undefined)
         req.post.contents = req.body.contents;
       req.post.edited = Date.now();
-      await req.post.validate();
       await req.post.save();
       res.json(postJSON(req.post, ["title"]));
     } catch (err) {
@@ -165,10 +165,7 @@ router
   .route("/likes/:postid")
   .get(async (req, res, next) => {
     try {
-      if (!mongoose.isValidObjectId(req.params.postid)) return notFound(res);
-      const post = await Post.findById(req.params.postid);
-      if (!post) return notFound(res);
-      const likes = await Like.find({ post: post._id });
+      const likes = await Like.find({ post: req.post._id });
       res.json(likes.map((l) => l.user));
     } catch (err) {
       next(err);
@@ -180,11 +177,8 @@ router
   .route("/likes/:postid/:username")
   .get(async (req, res, next) => {
     try {
-      if (!mongoose.isValidObjectId(req.params.postid)) return notFound(res);
-      const post = await Post.findById(req.params.postid);
-      if (!post) return notFound(res);
       const like = await Like.findOne({
-        post: post._id,
+        post: req.post._id,
         user: req.params.username,
       });
       res.json(like != null);
@@ -194,13 +188,10 @@ router
   })
   .post(async (req, res, next) => {
     try {
-      if (!mongoose.isValidObjectId(req.params.postid)) return notFound(res);
-      const post = await Post.findById(req.params.postid);
-      if (!post) return notFound(res);
-      const like = new Like({ post: post._id, user: req.params.username });
+      const like = new Like({ post: req.post._id, user: req.params.username });
       try {
         await like.save();
-        await Post.updateOne({ _id: post._id }, { $inc: { likeCount: 1 } });
+        await Post.updateOne({ _id: req.post._id }, { $inc: { likeCount: 1 } });
       } catch (err) {
         if (err.name === "MongoServerError" && err.code === 11000) {
         } else {
@@ -214,15 +205,15 @@ router
   })
   .delete(async (req, res, next) => {
     try {
-      if (!mongoose.isValidObjectId(req.params.postid)) return notFound(res);
-      const post = await Post.findById(req.params.postid);
-      if (!post) return notFound(res);
       const { deletedCount } = await Like.deleteOne({
-        post: post._id,
+        post: req.post._id,
         user: req.params.username,
       });
       if (deletedCount > 0) {
-        await Post.updateOne({ _id: post._id }, { $inc: { likeCount: -1 } });
+        await Post.updateOne(
+          { _id: req.post._id },
+          { $inc: { likeCount: -1 } },
+        );
       }
       res.json(false);
     } catch (err) {
@@ -233,7 +224,7 @@ router
 
 router.use((req, res) => notFound(res));
 
-router.use((err, req, res, next) => {
+router.use((err, req, res, _next) => {
   if (err.name === "SyntaxError") {
     res.status(400).json({ code: "INVALID_JSON", message: err.message });
   } else if (err.name === "ValidationError") {
