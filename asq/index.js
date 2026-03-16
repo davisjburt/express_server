@@ -5,6 +5,8 @@ const Like = require("./models/like");
 
 const router = express.Router();
 
+router.use(express.json());
+
 function notFound(res) {
   res
     .status(404)
@@ -12,12 +14,10 @@ function notFound(res) {
 }
 
 function unsupported(res) {
-  res
-    .status(405)
-    .json({
-      code: "UNSUPPORTED",
-      message: "Requested resource does not support this method",
-    });
+  res.status(405).json({
+    code: "UNSUPPORTED",
+    message: "Requested resource does not support this method",
+  });
 }
 
 function postJSON(doc, omit = []) {
@@ -230,12 +230,10 @@ router.use((err, req, res, _next) => {
   } else if (err.name === "ValidationError") {
     res.status(400).json({ code: "INVALID_PARAMS", message: err.message });
   } else {
-    res
-      .status(500)
-      .json({
-        code: "INTERNAL",
-        message: "The server encountered an unexpected error",
-      });
+    res.status(500).json({
+      code: "INTERNAL",
+      message: "The server encountered an unexpected error",
+    });
   }
 });
 
