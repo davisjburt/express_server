@@ -1,7 +1,7 @@
-import assert from "assert";
-import request from "supertest";
-import mongoose from "mongoose";
-import app from "../lib/app/app.js";
+const assert = require("assert");
+const request = require("supertest");
+const mongoose = require("mongoose");
+const app = require("../lib/app/app");
 
 const agent = request.agent(app);
 
@@ -255,14 +255,14 @@ async function run() {
       await t();
       console.log("OK");
     } catch (err) {
-      console.error("\nFAILED:", t.name);
+      console.error(`\nFAILED: ${t.name}`);
       console.error(err.stack || err);
       await mongoose.disconnect();
       process.exit(1);
     }
   }
 
-  console.log("All tests passed");
+  console.log("\nAll tests passed");
   await mongoose.disconnect();
   process.exit(0);
 }
