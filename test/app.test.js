@@ -2,6 +2,7 @@ const assert = require("assert");
 const request = require("supertest");
 const mongoose = require("mongoose");
 const app = require("../lib/app/app");
+const config = require("../lib/config");
 
 const agent = request.agent(app);
 
@@ -220,6 +221,20 @@ async function testUnknownRoute() {
 }
 
 async function run() {
+  const auth = config.dbUser
+    ? `${encodeURIComponent(config.dbUser)}:${encodeURIComponent(config.dbPass)}@`
+    : "";
+  const mongoUri = `mongodb://${auth}${config.dbHost}/${config.dbName}`;
+  try {
+    await mongoose.connect(mongoUri);
+  } catch (err) {
+    console.error(
+      "\nCould not connect to MongoDB. Start a local MongoDB instance (see README) and retry.",
+    );
+    console.error(err.message || err);
+    process.exit(1);
+  }
+
   const tests = [
     testCreateQuestion,
     testCreateQuestionMissingTitle,

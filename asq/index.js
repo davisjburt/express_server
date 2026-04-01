@@ -87,7 +87,7 @@ router
         edited: now,
       });
       await post.save();
-      res.json(postJSON(post, ["reference"]));
+      res.status(201).json(postJSON(post, ["reference"]));
     } catch (err) {
       next(err);
     }
@@ -138,7 +138,7 @@ router
         edited: now,
       });
       await post.save();
-      res.json(postJSON(post, ["title"]));
+      res.status(201).json(postJSON(post, ["title"]));
     } catch (err) {
       next(err);
     }
