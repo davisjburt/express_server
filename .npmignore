@@ -2,4 +2,3 @@ node_modules/
 *.tgz
 *.tar.gz
 sessions/
-static/
